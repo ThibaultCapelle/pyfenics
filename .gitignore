@@ -1,0 +1,7 @@
+*.pdf
+*.xml
+*.geo
+*.msh
+*.vtk
+*.pvd
+*.pyc
