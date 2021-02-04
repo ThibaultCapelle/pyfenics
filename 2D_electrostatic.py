@@ -70,9 +70,10 @@ gmsh.finalize()
 
 print('gmsh took {:.2f} s'.format(time.time()-t_ini))
 t_ini=time.time()
-#os.system('dolfin-convert MyDisk.msh testbis.xml')
-meshio.read("MyDiskbis.msh").write("test.xml")
-mesh=dolfin.Mesh('test.xml')
+os.system('dolfin-convert MyDisk.msh testbis.xml')
+#
+meshio.read("MyDisk.msh").write("test.xml")
+mesh=dolfin.Mesh('testbis.xml')
 print('write read meshes took {:.2f} s'.format(time.time()-t_ini))
 markers=dolfin.MeshFunction('size_t',mesh,1)
 values=[0 for i in range(markers.array().shape[0])]

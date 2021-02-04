@@ -159,7 +159,7 @@ class MyDict(dict):
 mesh.init(2,0)
 v_2_f = MyDict((tuple(facet.entities(0)), facet.index())
              for facet in dolfin.facets(mesh))
-for f in boundaries_nodes.values():
+for f in boundaries_nodes.values():parameters
     boundary_facets.append(v_2_f[tuple(sorted(f))])
 
 t_ini=time.time()
@@ -186,7 +186,7 @@ vals=np.zeros(mesh.num_cells())
 offset=np.min([np.min(v) for v in cell_physical.values()])
 for k,v in cell_physical.items():
     for jj in v:
-        vals[int(jj-1-offset)]=er_dict[k]
+        vals[int(jj-1-offset)]=er_dict[k]parameters
 ermarkers.set_values(vals)
 class Er(dolfin.UserExpression):
     
