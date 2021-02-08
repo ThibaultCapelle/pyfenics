@@ -7,7 +7,7 @@ Created on Sun Jan 17 17:35:53 2021
 """
 
 import gmsh, sys, time
-import dolfin, os
+import dolfin
 import numpy as np
 from test_export import write_mesh_vtk
 print('start')
@@ -43,8 +43,6 @@ for b in box1:
     if b[0]==3:
         box1=b[1]
         break
-#model.occ.synchronize()
-#model.addPhysicalGroup(3,[box1],tag=AIR)
 
 points=[model.occ.addPoint(-width/2.,-height/2.,0, meshSize=meshsize),
         model.occ.addPoint(-width/2.,height/2.,0, meshSize=meshsize),
@@ -114,21 +112,17 @@ print('filling dictionaries took {:} s'.format(time.time()-t_ini_bis))
 elementTypes, elementTags, elementnodeTags = model.mesh.getElements()
 nodetags, nodecoords, _ = model.mesh.getNodes()
 gmsh.write("bilayer.vtk")
-#gmsh.write("bilayer.msh")
 gmsh.finalize()
 print('after gmsh : {:} s'.format(time.time()-t_ini))
 
 
-#meshio.read("eigen3d.msh").write("eigen3d.xml")
-#os.system('dolfin-convert eigen3d.msh eigen3d.xml')
-#print('after dolfin_convert : {:} s'.format(time.time()-t_ini))
-#mesh=dolfin.Mesh('eigen3d.xml')
+
 t_ini_bis=time.time()
 mesh=dolfin.Mesh()
 editor=dolfin.MeshEditor()
 editor.open(mesh, "tetrahedron", 3, 3)
 editor.init_vertices_global(len(nodetags), len(nodetags))
-nodemap, nodemap_inv, cellmap=dict(), dict(), dict()
+nodemap, nodemap_inv, cellmap, cellmap_inv=dict(), dict(), dict(), dict()
 for i, tag in enumerate(nodetags):
     nodemap[i]=tag
     nodemap_inv[tag]=i
@@ -146,6 +140,7 @@ i=0
 for material in ['Air', 'Si']:
     for tag, nodes in cell_physical[material].items():
         cellmap[i]=tag
+        cellmap_inv[tag]=i
         editor.add_cell(i, [nodemap_inv[node] for node in nodes])
         i+=1
 
@@ -159,7 +154,7 @@ class MyDict(dict):
 mesh.init(2,0)
 v_2_f = MyDict((tuple(facet.entities(0)), facet.index())
              for facet in dolfin.facets(mesh))
-for f in boundaries_nodes.values():parameters
+for f in boundaries_nodes.values():
     boundary_facets.append(v_2_f[tuple(sorted(f))])
 
 t_ini=time.time()
@@ -167,26 +162,19 @@ print("starting the state space")
 vector_order, nodal_order = 1,1
 mesh.init()
 vector_space=dolfin.FunctionSpace(mesh,'Nedelec 1st kind H(curl)', vector_order)
-#vector_element = dolfin.VectorElement("Nedelec 1st kind H(curl)", mesh.ufl_cell(), vector_order)
-nodal_space=dolfin.FunctionSpace(mesh,'Lagrange',nodal_order)
-#nodal_element = dolfin.FiniteElement("Lagrange", mesh.ufl_cell(), nodal_order)
-#combined_space = vector_space * nodal_space
-combined_space=dolfin.FunctionSpace(mesh, vector_space.ufl_element() * nodal_space.ufl_element())
-#combined_element=dolfin.MixedElement([vector_element, nodal_element])
-#combined_space=dolfin.FunctionSpace(mesh, combined_element)
-#combined_space=dolfin.FunctionSpace(mesh, dolfin.MixedElement([vector_element, nodal_element]))
-(N_i, L_i)=dolfin.TestFunctions(combined_space)
-(N_j, L_j)=dolfin.TrialFunctions(combined_space)
+(N_i,)=dolfin.TestFunctions(vector_space)
+(N_j,)=dolfin.TrialFunctions(vector_space)
+
+
 print('made functions')
 er=1.
 ur=1.
 
-'''ermarkers=dolfin.MeshFunction('size_t', mesh, 3)
+ermarkers=dolfin.MeshFunction('double', mesh, 3)
 vals=np.zeros(mesh.num_cells())
-offset=np.min([np.min(v) for v in cell_physical.values()])
-for k,v in cell_physical.items():
-    for jj in v:
-        vals[int(jj-1-offset)]=er_dict[k]parameters
+for material in cell_physical.keys():
+    for cell_tag in cell_physical[material].keys():
+        vals[cellmap_inv[cell_tag]]=er_dict[material]
 ermarkers.set_values(vals)
 class Er(dolfin.UserExpression):
     
@@ -196,33 +184,30 @@ class Er(dolfin.UserExpression):
         pass
     
     def eval_cell(self, values, x, cell):
-        return self.marker[cell.index]
-er=Er(ermarkers)'''  
+        values[0]=self.marker[cell.index]
+er=Er(ermarkers)
 
-er=1.    
-s_tt_ij=1./ur*dolfin.inner(dolfin.curl(N_i), dolfin.curl(N_j))
-t_tt_ij=er*dolfin.inner(N_i, N_j)
-s_zz_ij=1./ur*dolfin.inner(dolfin.grad(L_i), dolfin.grad(L_j))
-t_zz_ij=er*L_i*L_j
-s_ij=(s_tt_ij+s_zz_ij)*dolfin.dx
-t_ij=(t_tt_ij+t_zz_ij)*dolfin.dx
-#S=dolfin.PETScMatrix()
-#T=dolfin.PETScMatrix()
+s_ij=1./ur*dolfin.inner(dolfin.curl(N_i), dolfin.curl(N_j))*dolfin.dx
+t_ij=er*dolfin.inner(N_i, N_j)*dolfin.dx
+
+S=dolfin.PETScMatrix()
+T=dolfin.PETScMatrix()
 print('before assemble: {:}s'.format(time.time()-t_ini))
-S=dolfin.assemble(s_ij)#, tensor=S)
-T=dolfin.assemble(t_ij)#, tensor=T)
+dolfin.assemble(s_ij, tensor=S)
+print('first assembly')
+dolfin.assemble(t_ij, tensor=T)
+
+#%%
 
 
 print("starting the boundary conditions")
 t_ini=time.time()
 markers=dolfin.MeshFunction('size_t',mesh,2 )
-#markers.set_all(0)
-#dolfin.DomainBoundary().mark(markers,1)'''
 vals=np.zeros(markers.array().shape, dtype=int)
 vals[boundary_facets]=int(BBOX)
 markers.set_values(vals)
-electric_wall = dolfin.DirichletBC(combined_space, 
-                                   dolfin.Constant((0.0,0.0,0.0,0.0)),
+electric_wall = dolfin.DirichletBC(vector_space, 
+                                   dolfin.Constant((0.0,0.0,0.0)),
                                    markers,
                                    BBOX)
 electric_wall.apply(S)
@@ -230,53 +215,59 @@ electric_wall.apply(T)
 print('boundary conditions took {:} s'.format(time.time()-t_ini))
 
 
-indicators=np.ones(S.size(0))
-keys=[k for k in electric_wall.get_boundary_values().keys()]
-indicators[keys]=0
-free_dofs=np.where(indicators==1)[0]
-S_np=S.array()[free_dofs,:][:,free_dofs]
-T_np=T.array()[free_dofs,:][:,free_dofs]
-#S.set(S_np)
-#T.set(T_np)
-
+#%%
 print("starting the solving")
-from scipy.linalg import eig
-kc_squared,ev=eig(S_np, T_np)
-sort_index=np.argsort(kc_squared)
-first_mode_idx=np.where(kc_squared[sort_index]>1e-8)[0][0]
+solver=dolfin.SLEPcEigenSolver(S,T)
+solver.parameters["spectral_transform"]="shift-and-invert"
+solver.parameters['spectral_shift']=50.
+solver.parameters['spectrum']='smallest real'
 
+n_to_solve = 0
+lambdas=[]
+n_converged=0
+while (n_converged==0 or len(lambdas)==0) and n_to_solve<100:
+    n_to_solve+=1
+    print('n_to_solve:{:}'.format(n_to_solve))
+    t_ini=time.time()
+    solver.solve(n_to_solve)
+    print("solving is done, converged {:}, time: {:} s".format(solver.get_number_converged(),
+                                                                  time.time()-t_ini))
+    t_ini=time.time()
+    n_converged=solver.get_number_converged()
+    lambdas=[solver.get_eigenvalue(i) for i in range(n_converged)]
+    print('first part of stupid stuff took {:} s'.format(time.time()-t_ini))
+    lambdas=[lambdas[i] for i in np.where(np.abs(lambdas)>1.5)[0]]
+    print('stupid stuff took {:} s'.format(time.time()-t_ini))
+#%%
+t_ini=time.time()
+lambdas, vectors=np.empty(solver.get_number_converged()), []
+for i in range(solver.get_number_converged()):
+    r,c,RV,IV=solver.get_eigenpair(i)
+    lambdas[i]=r
+    vectors.append(RV)
+print('first part of ugly stuff took {:} s'.format(time.time()-t_ini))
+vectors=[vectors[i] for i in np.where(np.abs(lambdas)>1.5)[0]]
+lambdas=lambdas[np.where(np.abs(lambdas)>1.5)[0]]
+index=np.argsort(lambdas)
+vectors=[vectors[i] for i in index]
+lambdas=lambdas[index]
+print('second part of ugly stuff took {:} s'.format(time.time()-t_ini))
+print('ugly stuff took {:} s'.format(time.time()-t_ini))
+#%%
 
-'''solver=dolfin.SLEPcEigenSolver(S,T)
-solver.solve()
-r, c, RV, IV = solver.get_eigenpair(solver.get_number_converged()-1)
-mode=dolfin.Function(combined_space)
-mode.vector().set_local(RV)
-(Te,Tm)=mode.split()'''
-
-print("The cutoff frequencies of the 4 dominant modes are :")
-print(kc_squared[sort_index][first_mode_idx:first_mode_idx+4])
-mode_idx=1
-coefficients_global=np.zeros(S.size(0))
-coefficients_global[free_dofs]=ev[:,sort_index[first_mode_idx+mode_idx]]
-
-mode=dolfin.Function(combined_space)
-mode.vector().set_local(coefficients_global)
-
-(Te,Tm)=mode.split()
-#dolfin.plot(Te)
-
-
-
-write_mesh_vtk('eigen3D.vtk',  elementTypes, elementTags, elementnodeTags,
+write_mesh_vtk('bilayer.vtk',  elementTypes, elementTags, elementnodeTags,
                        nodetags, nodecoords)
 
-with open('eigen3D.vtk','a') as f:
+with open('bilayer.vtk','a') as f:
     f.write('POINT_DATA {:}\n'.format(mesh.num_vertices()))
-    f.write('VECTORS Te double\n')
-    #f.write('SCALARS norm double 1\n')
-    #f.write('LOOKUP_TABLE default\n')
-    for i in range(mesh.num_vertices()):
-        f.write('{:} {:} {:}\n'.format(Te.compute_vertex_values()[i],
-                                       Te.compute_vertex_values()[mesh.num_vertices()+i],
-                                       Te.compute_vertex_values()[2*mesh.num_vertices()+i]))
-    f.write('\n')
+    for j, vec in enumerate(vectors):
+        f.write('VECTORS Te{:} double\n'.format(j))
+        mode=dolfin.Function(vector_space)
+        mode.vector().set_local(vec)
+        values=mode.compute_vertex_values()
+       
+        for i in range(mesh.num_vertices()):
+            f.write('{:} {:} {:}\n'.format(values[i],
+                                           values[mesh.num_vertices()+i],
+                                           values[2*mesh.num_vertices()+i]))
+        f.write('\n')

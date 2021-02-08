@@ -30,9 +30,9 @@ def write_mesh_vtk(filename, elementTypes, elementTags, elementnodeTags,
         f.write('DATASET UNSTRUCTURED_GRID\n')
         f.write('POINTS {:} double\n'.format(len(nodetags)))
         for i in range(len(nodetags)):
-            f.write('{:} {:} {:}\n'.format(nodecoords[3*i],
-                                           nodecoords[3*i+1],
-                                           nodecoords[3*i+2]))
+            f.write('{:} {:} {:}\n'.format(float(nodecoords[3*i]),
+                                           float(nodecoords[3*i+1]),
+                                           float(nodecoords[3*i+2])))
         f.write('\n')
         f.write('CELLS {:} {:}\n'.format(ncells, size_cells))
         for i,Type in enumerate(elementTypes):

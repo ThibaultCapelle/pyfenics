@@ -13,7 +13,7 @@ model = gmsh.model
 
 width=1
 height=2
-meshsize=0.01
+meshsize=0.02
 points=[model.occ.addPoint(-width/2.,-height/2.,0, meshSize=meshsize),
         model.occ.addPoint(-width/2.,height/2.,0, meshSize=meshsize),
         model.occ.addPoint(width/2.,height/2.,0, meshSize=meshsize),
@@ -81,13 +81,13 @@ electric_wall = dolfin.DirichletBC(combined_space,
                                    1)
 electric_wall.apply(S)
 electric_wall.apply(T)
-
+#%%
 print("starting the solving")
 solver=dolfin.SLEPcEigenSolver(S,T)
 solver.parameters["spectral_transform"]="shift-and-invert"
-solver.parameters['spectral_shift']=3.
+solver.parameters['spectral_shift']=2.
 solver.parameters['spectrum']='smallest real'
-#%%
+
 solver.solve(100)
 print("solving is done")
 t_ini=time.time()
@@ -109,10 +109,10 @@ mode=dolfin.Function(combined_space)
 mode.vector().set_local(vectors[0])
 (Te,Tm)=mode.split()
 
-write_mesh_vtk('eigen.vtk',  elementTypes, elementTags, elementnodeTags,
+write_mesh_vtk('eigen2D.vtk',  elementTypes, elementTags, elementnodeTags,
                        nodetags, nodecoords)
 
-with open('eigen.vtk','a') as f:
+with open('eigen2D.vtk','a') as f:
     f.write('POINT_DATA {:}\n'.format(mesh.num_vertices()))
     for j, vec in enumerate(vectors):
         f.write('VECTORS Te{:} double\n'.format(j))
