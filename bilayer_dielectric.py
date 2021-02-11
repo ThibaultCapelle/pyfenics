@@ -84,7 +84,7 @@ for e in entities:
 boundaries_nodes=dict()
 for entity in boundaries_entities:
     res=gmsh.model.mesh.getElements(tag=entity,dim=2)    
-    for i, tag in enumerate(res[1][0]):Er
+    for i, tag in enumerate(res[1][0]):
         boundaries_nodes[tag]=(int(res[2][0][3*i]-1),
                                int(res[2][0][3*i+1]-1),
                                int(res[2][0][3*i+2]-1))
