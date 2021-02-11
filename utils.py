@@ -1,14 +1,12 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Created on Sun Jan 17 14:46:25 2021
+Created on Thu Feb 11 10:38:41 2021
 
 @author: usera
 """
 
-import gmsh
-import sys
-import numpy as np
+import dolfin
 
 def write_mesh_vtk(filename, elementTypes, elementTags, elementnodeTags,
                    nodetags, nodecoords):
@@ -71,30 +69,12 @@ def write_mesh_vtk(filename, elementTypes, elementTags, elementnodeTags,
                     f.write('10\n')
         f.write('\n')
 
-if __name__=='__main__':
-    gmsh.initialize(sys.argv)
-    gmsh.option.setNumber("General.Terminal", 1)
-    gmsh.option.setNumber("Mesh.MshFileVersion", 2.2)
+class Expression(dolfin.UserExpression):
     
+    def __init__(self, marker, **kwargs):
+        self.marker=marker
+        super().__init__(**kwargs)
+        pass
     
-    model = gmsh.model
-    
-    width=1
-    height=1
-    
-    points=[model.occ.addPoint(-width/2.,-height/2.,0, meshSize=0.2),
-            model.occ.addPoint(-width/2.,height/2.,0, meshSize=0.2),
-            model.occ.addPoint(width/2.,height/2.,0, meshSize=0.2),
-            model.occ.addPoint(width/2.,-height/2.,0, meshSize=0.2)]
-    lines=[model.occ.addLine(points[i], points[(i+1)%len(points)]) for i in range(len(points))]
-    loop=model.occ.addCurveLoop(lines)
-    rect1=model.occ.addPlaneSurface([loop])
-    model.occ.synchronize()
-    model.mesh.generate(2)
-    elementTypes, elementTags, elementnodeTags = model.mesh.getElements()
-    nodetags, nodecoords, _ = model.mesh.getNodes()
-    gmsh.write("export.vtk")
-    gmsh.finalize()
-    
-    write_mesh_vtk('exportbis.vtk',  elementTypes, elementTags, elementnodeTags,
-                       nodetags, nodecoords)
+    def eval_cell(self, values, x, cell):
+        values[0]=self.marker[cell.index]

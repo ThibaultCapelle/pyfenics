@@ -9,7 +9,7 @@ Created on Sun Jan 17 17:35:53 2021
 import gmsh, sys, time
 import dolfin, os
 import numpy as np
-from test_export import write_mesh_vtk
+from utils import write_mesh_vtk
 print('start')
 t_ini=time.time()
 gmsh.initialize(sys.argv)

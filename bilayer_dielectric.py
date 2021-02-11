@@ -9,7 +9,7 @@ Created on Sun Jan 17 17:35:53 2021
 import gmsh, sys, time
 import dolfin
 import numpy as np
-from test_export import write_mesh_vtk
+from utils import write_mesh_vtk, Expression
 print('start')
 t_ini=time.time()
 gmsh.initialize(sys.argv)
@@ -84,7 +84,7 @@ for e in entities:
 boundaries_nodes=dict()
 for entity in boundaries_entities:
     res=gmsh.model.mesh.getElements(tag=entity,dim=2)    
-    for i, tag in enumerate(res[1][0]):
+    for i, tag in enumerate(res[1][0]):Er
         boundaries_nodes[tag]=(int(res[2][0][3*i]-1),
                                int(res[2][0][3*i+1]-1),
                                int(res[2][0][3*i+2]-1))
@@ -176,16 +176,8 @@ for material in cell_physical.keys():
     for cell_tag in cell_physical[material].keys():
         vals[cellmap_inv[cell_tag]]=er_dict[material]
 ermarkers.set_values(vals)
-class Er(dolfin.UserExpression):
-    
-    def __init__(self, marker, **kwargs):
-        self.marker=marker
-        super().__init__(**kwargs)
-        pass
-    
-    def eval_cell(self, values, x, cell):
-        values[0]=self.marker[cell.index]
-er=Er(ermarkers)
+
+er=Expression(ermarkers)
 
 s_ij=1./ur*dolfin.inner(dolfin.curl(N_i), dolfin.curl(N_j))*dolfin.dx
 t_ij=er*dolfin.inner(N_i, N_j)*dolfin.dx

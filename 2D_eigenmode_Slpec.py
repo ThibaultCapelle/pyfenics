@@ -1,7 +1,7 @@
 import gmsh, sys
 import dolfin, time
 import numpy as np
-from test_export import write_mesh_vtk
+from utils import write_mesh_vtk
 
 gmsh.initialize(sys.argv)
 gmsh.option.setNumber("General.Terminal", 1)
