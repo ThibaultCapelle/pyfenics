@@ -9,7 +9,7 @@ Created on Sun Jan 17 17:35:53 2021
 import gmsh, sys, time
 import dolfin
 import numpy as np
-from utils import write_mesh_vtk, Expression
+from utils import Expression, DOLFIN_Mesh
 print('start')
 t_ini=time.time()
 gmsh.initialize(sys.argv)
@@ -20,6 +20,7 @@ gmsh.option.setNumber("Mesh.SaveAll", 0)
 SI=140
 AIR=150
 BBOX=160
+material_dict=dict({'Si':SI, 'Air':AIR})
 er_dict=dict({'Air':1.0,
          'Si':11.7})
 model = gmsh.model
@@ -90,33 +91,19 @@ for entity in boundaries_entities:
                                int(res[2][0][3*i+2]-1))
     
 t_ini_bis=time.time()
-cell_physical=dict({'Si':dict(),
-                         'Air':dict()})
-entities_physical=dict({'Air':model.getEntitiesForPhysicalGroup(3,AIR),
-                        'Si':model.getEntitiesForPhysicalGroup(3,SI)})
-for e in entities_physical['Si']:
-    elementTypes, elementTags, elementnodeTags = model.mesh.getElements(dim=3, tag=e)
-    for i, tag in enumerate(elementTags[0]):
-        cell_physical['Si'][tag]=[elementnodeTags[0][4*i],
-                                             elementnodeTags[0][4*i+1],
-                                             elementnodeTags[0][4*i+2],
-                                             elementnodeTags[0][4*i+3]]
-for e in entities_physical['Air']:
-    elementTypes, elementTags, elementnodeTags = model.mesh.getElements(dim=3, tag=e)
-    for i, tag in enumerate(elementTags[0]):
-        cell_physical['Air'][tag]=[elementnodeTags[0][4*i],
-                                             elementnodeTags[0][4*i+1],
-                                             elementnodeTags[0][4*i+2],
-                                             elementnodeTags[0][4*i+3]]
+#cell_physical= get_cell_physical(material_dict)
+
 print('filling dictionaries took {:} s'.format(time.time()-t_ini_bis))
-elementTypes, elementTags, elementnodeTags = model.mesh.getElements()
-nodetags, nodecoords, _ = model.mesh.getNodes()
+dmesh=DOLFIN_Mesh(physical_dictionary=material_dict)
+mesh=dmesh.mesh
+#elementTypes, elementTags, elementnodeTags = model.mesh.getElements()
+#nodetags, nodecoords, _ = model.mesh.getNodes()
 gmsh.write("bilayer.vtk")
 gmsh.finalize()
 print('after gmsh : {:} s'.format(time.time()-t_ini))
 
 
-
+'''
 t_ini_bis=time.time()
 mesh=dolfin.Mesh()
 editor=dolfin.MeshEditor()
@@ -145,6 +132,7 @@ for material in ['Air', 'Si']:
         i+=1
 
 editor.close()
+'''
 print('after mesh import: {:} s'.format(time.time()-t_ini_bis))
 boundary_facets=[]
 
@@ -172,9 +160,9 @@ ur=1.
 
 ermarkers=dolfin.MeshFunction('double', mesh, 3)
 vals=np.zeros(mesh.num_cells())
-for material in cell_physical.keys():
-    for cell_tag in cell_physical[material].keys():
-        vals[cellmap_inv[cell_tag]]=er_dict[material]
+for material in dmesh.cell_physical.keys():
+    for cell_tag in dmesh.cell_physical[material].keys():
+        vals[dmesh.cellmap_inv[cell_tag]]=er_dict[material]
 ermarkers.set_values(vals)
 
 er=Expression(ermarkers)
@@ -247,8 +235,7 @@ print('second part of ugly stuff took {:} s'.format(time.time()-t_ini))
 print('ugly stuff took {:} s'.format(time.time()-t_ini))
 #%%
 
-write_mesh_vtk('bilayer.vtk',  elementTypes, elementTags, elementnodeTags,
-                       nodetags, nodecoords)
+dmesh.write_vtk('bilayer.vtk')
 
 with open('bilayer.vtk','a') as f:
     f.write('POINT_DATA {:}\n'.format(mesh.num_vertices()))
