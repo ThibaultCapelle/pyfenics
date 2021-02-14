@@ -9,7 +9,7 @@ Created on Sun Jan 17 17:35:53 2021
 import gmsh, sys, time
 import dolfin
 import numpy as np
-from utils import Expression, DOLFIN_Mesh
+from utils import Expression, DOLFIN_Mesh, addBox
 print('start')
 t_ini=time.time()
 gmsh.initialize(sys.argv)
@@ -31,33 +31,10 @@ thick_air=0.5
 thick_Si=0.2
 
 meshsize=0.05
-points=[model.occ.addPoint(-width/2.,-height/2.,0, meshSize=meshsize),
-        model.occ.addPoint(-width/2.,height/2.,0, meshSize=meshsize),
-        model.occ.addPoint(width/2.,height/2.,0, meshSize=meshsize),
-        model.occ.addPoint(width/2.,-height/2.,0, meshSize=meshsize)]
 
-lines=[model.occ.addLine(points[i], points[(i+1)%len(points)]) for i in range(len(points))]
-loop=model.occ.addCurveLoop(lines)
-rect1=model.occ.addPlaneSurface([loop])
-box1=model.occ.extrude([[2,rect1]],0,0,thick_air+thick_Si)
-for b in box1:
-    if b[0]==3:
-        box1=b[1]
-        break
+box1=addBox(0, 0, 0, width, height, thick_air+thick_Si, meshsize=meshsize)
+box2=addBox(0, 0, 0, width, height, thick_Si, meshsize=meshsize)
 
-points=[model.occ.addPoint(-width/2.,-height/2.,0, meshSize=meshsize),
-        model.occ.addPoint(-width/2.,height/2.,0, meshSize=meshsize),
-        model.occ.addPoint(width/2.,height/2.,0, meshSize=meshsize),
-        model.occ.addPoint(width/2.,-height/2.,0, meshSize=meshsize)]
-
-lines=[model.occ.addLine(points[i], points[(i+1)%len(points)]) for i in range(len(points))]
-loop=model.occ.addCurveLoop(lines)
-rect2=model.occ.addPlaneSurface([loop])
-box2=model.occ.extrude([[2,rect2]],0,0,thick_Si)
-for b in box2:
-    if b[0]==3:
-        box2=b[1]
-        break
 box1=model.occ.cut([[3,box1]], [[3,box2]], removeTool=False)
 for b in box1[0]:
     if b[0]==3:
@@ -102,38 +79,6 @@ gmsh.write("bilayer.vtk")
 gmsh.finalize()
 print('after gmsh : {:} s'.format(time.time()-t_ini))
 
-
-'''
-t_ini_bis=time.time()
-mesh=dolfin.Mesh()
-editor=dolfin.MeshEditor()
-editor.open(mesh, "tetrahedron", 3, 3)
-editor.init_vertices_global(len(nodetags), len(nodetags))
-nodemap, nodemap_inv, cellmap, cellmap_inv=dict(), dict(), dict(), dict()
-for i, tag in enumerate(nodetags):
-    nodemap[i]=tag
-    nodemap_inv[tag]=i
-    editor.add_vertex(i, [nodecoords[3*i],
-                            nodecoords[3*i+1],
-                            nodecoords[3*i+2]])
-print('after mesh vertices import: {:} s'.format(time.time()-t_ini_bis))
-t_ini_bis=time.time()
-index_tetra=np.where(elementTypes==4)[0][0]
-editor.init_cells_global(len(elementTags[index_tetra]),
-                         len(elementTags[index_tetra]))
-cell_physical_dolfin=dict({'Si':[],
-                           'Air':[]})
-i=0
-for material in ['Air', 'Si']:
-    for tag, nodes in cell_physical[material].items():
-        cellmap[i]=tag
-        cellmap_inv[tag]=i
-        editor.add_cell(i, [nodemap_inv[node] for node in nodes])
-        i+=1
-
-editor.close()
-'''
-print('after mesh import: {:} s'.format(time.time()-t_ini_bis))
 boundary_facets=[]
 
 class MyDict(dict):
