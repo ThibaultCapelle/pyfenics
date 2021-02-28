@@ -151,8 +151,19 @@ class Expression(dolfin.UserExpression):
     
     def eval_cell(self, values, x, cell):
         values[0]=self.marker[cell.index]
-
+    
+        
 def addBox(x,y,z,dx,dy,dz,meshsize=None):
+    model=gmsh.model
+    rect1=addRectangle(x,y,z,dx,dy, meshsize=meshsize)
+    box1=model.occ.extrude([[2,rect1]],0,0,dz)
+    for b in box1:
+        if b[0]==3:
+            box=b[1]
+            break
+    return box
+
+def addRectangle(x,y,z,dx,dy, meshsize=None):
     model=gmsh.model
     points=[model.occ.addPoint(x-dx/2.,y-dy/2.,z, meshSize=meshsize),
         model.occ.addPoint(x-dx/2.,y+dy/2.,z, meshSize=meshsize),
@@ -161,10 +172,31 @@ def addBox(x,y,z,dx,dy,dz,meshsize=None):
 
     lines=[model.occ.addLine(points[i], points[(i+1)%len(points)]) for i in range(len(points))]
     loop=model.occ.addCurveLoop(lines)
-    rect1=model.occ.addPlaneSurface([loop])
-    box1=model.occ.extrude([[2,rect1]],0,0,dz)
-    for b in box1:
-        if b[0]==3:
-            box=b[1]
-            break
-    return box
+    return model.occ.addPlaneSurface([loop])
+
+def Integrate(dimtags1, dimtags2):
+    #dimtags1 is the 3d entities, dimtags2 is the 2d entities
+    model=gmsh.model
+    model.occ.synchronize()
+    entities=model.getBoundary(dimtags1)
+    print(entities)
+    entities_bis=[tag for dim,tag in entities+dimtags2]
+    for dim,tag in entities:
+        outdimtags, outdimtagmap = model.occ.cut([[2,tag]], dimtags2, removeObject=False,removeTool=False)
+        tag_removed=False
+        for dim, tagbis in outdimtags:
+            print(tagbis)
+            if (dim,tagbis) not in entities:
+                print('tagbis {:} is a new one'.format(tagbis))
+                if not tag_removed:
+                    print('tag {:} is removed'.format(tag))
+                    print('entities before remove are {:}'.format(model.occ.getEntities(dim=2)))
+                    model.occ.remove([(2,tag)])
+                    print('entities after remove are {:}'.format(model.occ.getEntities(dim=2)))
+                    tag_removed=True
+                    entities_bis.remove(tag)
+                entities_bis.append(tagbis)
+    print(entities_bis)
+    model.occ.remove(dimtags1)
+    print('entities before addVolume are {:}'.format(model.occ.getEntities(dim=2)))
+    return model.occ.addVolume([model.occ.addSurfaceLoop(entities_bis)])

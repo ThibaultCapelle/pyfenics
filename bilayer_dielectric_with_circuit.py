@@ -8,7 +8,7 @@ Created on Sun Jan 17 17:35:53 2021
 
 import gmsh, sys
 import numpy as np
-from utils import Expression, DOLFIN_Mesh, addBox
+from utils import Expression, DOLFIN_Mesh, addBox, addRectangle, Integrate
 
 gmsh.initialize(sys.argv)
 gmsh.option.setNumber("General.Terminal", 1)
@@ -67,4 +67,36 @@ model.occ.synchronize()
 model.mesh.generate(3)
 entities=model.getEntities()
 gmsh.write('circuit_bis.vtk')
+gmsh.finalize()
+#%%
+gmsh.initialize(sys.argv)
+gmsh.option.setNumber("General.Terminal", 1)
+gmsh.option.setNumber("Mesh.MshFileVersion", 2.0)
+gmsh.option.setNumber("Mesh.SaveAll", 0)
+
+model = gmsh.model
+x,y,z=0,0,0
+dx,dy,dz=1.,1.,1.
+box=addBox(x,y,z,dx,dy,dz, meshsize=0.2)
+dx,dy=0.1,0.8
+meshsize=0.01
+recthole=addRectangle(x,y,z,dx,dy,meshsize=meshsize)
+box=Integrate([[3,box]],[[2,recthole]])
+'''
+model.occ.remove(model.occ.getEntities(dim=3))
+entities=model.occ.getEntities(dim=2)
+for dim,tag in model.occ.getEntities(dim=2):
+    outdimtags, outdimtagmap = model.occ.cut([[2,tag]], [[2,recthole]], removeObject=False,removeTool=False)
+    for dim, tagbis in outdimtags:
+        if (dim,tagbis) not in entities:
+            model.occ.remove([[2,tag]])
+            entities=model.occ.getEntities(dim=2)
+            box=model.occ.addVolume([model.occ.addSurfaceLoop([tag for dim, tag in entities])])
+            break
+'''
+model.occ.synchronize() 
+print('entities are {:}'.format(model.occ.getEntities(dim=2)))
+print(model.getBoundary([[3,box]]))
+model.mesh.generate(3)
+gmsh.write('circuit_ter.vtk')
 gmsh.finalize()
