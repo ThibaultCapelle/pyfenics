@@ -185,6 +185,7 @@ def integrate(dimtags1, dimtags2):
                                                removeObject=False, 
                                                removeTool=False)
         new_bounds+=outdimtags
-    model.occ.addVolume([model.occ.addSurfaceLoop([tag for dim, tag in new_bounds])])
+    res=model.occ.addVolume([model.occ.addSurfaceLoop([tag for dim, tag in new_bounds])])
     model.occ.synchronize()
     model.removeEntities(dimtags1, recursive=True)
+    return res
