@@ -30,7 +30,7 @@ height=0.7
 thick_air=0.5
 thick_Si=0.2
 
-meshsize=0.05
+meshsize=0.025
 
 box1=addBox(0, 0, 0, width, height, thick_air+thick_Si, meshsize=meshsize)
 box2=addBox(0, 0, 0, width, height, thick_Si, meshsize=meshsize)
@@ -143,11 +143,15 @@ print('boundary conditions took {:} s'.format(time.time()-t_ini))
 #%%
 print("starting the solving")
 solver=dolfin.SLEPcEigenSolver(S,T)
-solver.parameters["spectral_transform"]="shift-and-invert"
-solver.parameters['spectral_shift']=50.
-solver.parameters['spectrum']='smallest real'
+solver.parameters["solver"] = "krylov-schur"
+solver.parameters["problem_type"] = "gen_hermitian"
+solver.parameters["spectrum"] = "target magnitude"
+solver.parameters["spectral_transform"] = "shift-and-invert"
+solver.parameters["spectral_shift"] = 30.
 
-n_to_solve = 0
+
+
+n_to_solve = 1
 lambdas=[]
 n_converged=0
 while (n_converged==0 or len(lambdas)==0) and n_to_solve<100:
