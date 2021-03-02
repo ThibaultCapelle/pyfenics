@@ -174,29 +174,17 @@ def addRectangle(x,y,z,dx,dy, meshsize=None):
     loop=model.occ.addCurveLoop(lines)
     return model.occ.addPlaneSurface([loop])
 
-def Integrate(dimtags1, dimtags2):
-    #dimtags1 is the 3d entities, dimtags2 is the 2d entities
+def integrate(dimtags1, dimtags2):
+    #dimtags1 correspond to the 3D entity, dimtags2 to the 2d entity
     model=gmsh.model
     model.occ.synchronize()
-    entities=model.getBoundary(dimtags1)
-    print(entities)
-    entities_bis=[tag for dim,tag in entities+dimtags2]
-    for dim,tag in entities:
-        outdimtags, outdimtagmap = model.occ.cut([[2,tag]], dimtags2, removeObject=False,removeTool=False)
-        tag_removed=False
-        for dim, tagbis in outdimtags:
-            print(tagbis)
-            if (dim,tagbis) not in entities:
-                print('tagbis {:} is a new one'.format(tagbis))
-                if not tag_removed:
-                    print('tag {:} is removed'.format(tag))
-                    print('entities before remove are {:}'.format(model.occ.getEntities(dim=2)))
-                    model.occ.remove([(2,tag)])
-                    print('entities after remove are {:}'.format(model.occ.getEntities(dim=2)))
-                    tag_removed=True
-                    entities_bis.remove(tag)
-                entities_bis.append(tagbis)
-    print(entities_bis)
-    model.occ.remove(dimtags1)
-    print('entities before addVolume are {:}'.format(model.occ.getEntities(dim=2)))
-    return model.occ.addVolume([model.occ.addSurfaceLoop(entities_bis)])
+    bound=model.getBoundary(dimtags1)
+    new_bounds=dimtags2
+    for dim, tag in bound:
+        outdimtags, outdimtagmap=model.occ.cut([[2,tag]], dimtags2, 
+                                               removeObject=False, 
+                                               removeTool=False)
+        new_bounds+=outdimtags
+    model.occ.addVolume([model.occ.addSurfaceLoop([tag for dim, tag in new_bounds])])
+    model.occ.synchronize()
+    model.removeEntities(dimtags1, recursive=True)
